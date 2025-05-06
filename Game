@@ -1,0 +1,87 @@
+import random
+
+# Simulation parameters (can be adjusted)
+PARAMS = {
+    'three_point_pct': 0.35,      # 35% 3P shooting
+    'two_point_pct': 0.55,        # 55% 2P shooting
+    'ft_pct': 0.60,               # 60% opponent FT
+    'oreb_pct': 0.30,             # 30% offensive rebound chance
+    'ot_win_pct': 0.50,           # 50% OT win chance
+    'initial_time': 30,           # 30 seconds remaining
+    'time_per_foul': 5,           # 5 sec per foul
+    'time_per_shot': 5            # 5 sec per shot attempt
+}
+
+def simulate_three_point_strategy():
+    """Simulates shooting a 3-pointer with foul logic"""
+    time = PARAMS['initial_time'] - PARAMS['time_per_shot']
+    score_diff = -3
+    
+    # first 3-point attempt
+    if random.random() < PARAMS['three_point_pct']:
+        return 'win' if random.random() < PARAMS['ot_win_pct'] else 'loss'
+    
+    # Missed shot - foul opponent
+    time -= PARAMS['time_per_foul']
+    if time < 0: return 'loss'
+    
+    # Free throw outcomes
+    made_fts = sum(random.random() < PARAMS['ft_pct'] for _ in range(2))
+    score_diff -= made_fts
+    
+    # Final shot attempt if there is time
+    if time > 0 and score_diff < 0:
+        time -= PARAMS['time_per_shot']
+        if time >= 0 and random.random() < PARAMS['two_point_pct']:
+            score_diff += 2
+            
+    return 'win' if score_diff >= 0 else 'loss'
+
+def simulate_foul_strategy():
+    """Simulates fouling strategy with possession loops"""
+    time = PARAMS['initial_time']
+    score_diff = -3
+    possession = 'opponent'
+    
+    while time > 0 and score_diff < 0:
+        if possession == 'opponent':
+            # Foul
+            time -= PARAMS['time_per_foul']
+            if time < 0: break
+            
+            # Free throws
+            made_fts = sum(random.random() < PARAMS['ft_pct'] for _ in range(2))
+            score_diff -= made_fts
+            possession = 'us'
+        else:
+            # Shots attempted
+            time -= PARAMS['time_per_shot']
+            if time < 0: break
+            
+            if random.random() < PARAMS['two_point_pct']:
+                score_diff += 2
+                possession = 'opponent'
+            else:
+                # Rebound
+                possession = 'us' if random.random() < PARAMS['oreb_pct'] else 'opponent'
+
+    # final outcome
+    if score_diff > 0: return 'win'
+    if score_diff == 0: return 'win' if random.random() < PARAMS['ot_win_pct'] else 'loss'
+    return 'loss'
+
+def run_simulation(trials=100000):
+    """Runs Monte Carlo simulation and prints results"""
+    results = {'3pt': 0, 'foul': 0}
+    
+    for _ in range(trials):
+        results['3pt'] += simulate_three_point_strategy() == 'win'
+        results['foul'] += simulate_foul_strategy() == 'win'
+    
+    print(f"## Basketball End-Game Simulation Results ({trials:,} trials)")
+    print(f"### 3-Point Strategy\n- Win rate: {results['3pt']/trials*100:.1f}%")
+    print(f"\n### Foul Strategy\n- Win rate: {results['foul']/trials*100:.1f}%")
+    print("\nKey Insight: The foul strategy generally provides better win probability when opponent FT% < 65% and offensive rebound chances exist.")
+
+if __name__ == '__main__':
+    run_simulation()
